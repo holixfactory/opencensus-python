@@ -18,6 +18,7 @@ import threading
 import time
 
 import requests
+from requests.adapters import HTTPAdapter
 from azure.core.exceptions import ClientAuthenticationError
 from azure.identity._exceptions import CredentialUnavailableError
 
@@ -53,6 +54,10 @@ THROTTLE_STATUS_CODES = (
     402,  # Quota, too Many Requests over extended time
     439,  # Quota, too Many Requests over extended time (legacy)
 )
+
+_session = requests.Session()
+_adapter = HTTPAdapter(pool_connections=1, pool_maxsize=3, pool_block=True)
+_session.mount("https://", _adapter)
 
 
 class TransportStatusCode:
@@ -111,7 +116,7 @@ class TransportMixin(object):
                 token = self.options.credential.get_token(_MONITOR_OAUTH_SCOPE)
                 headers["Authorization"] = "Bearer {}".format(token.token)
             endpoint += '/v2.1/track'
-            response = requests.post(
+            response = _session.post(
                 url=endpoint,
                 data=json.dumps(envelopes),
                 headers=headers,
